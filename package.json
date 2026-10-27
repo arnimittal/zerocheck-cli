@@ -1,0 +1,17 @@
+{
+  "name": "zerocheck-cli-source",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "cd packages/thin-cli && ../../node_modules/.bin/tsup",
+    "check": "node scripts/check-public-build.mjs"
+  },
+  "devDependencies": {
+    "tsup": "8.5.1",
+    "esbuild": "0.27.7",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "esbuild": "0.27.7"
+  }
+}

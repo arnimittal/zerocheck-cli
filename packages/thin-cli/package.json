@@ -1,0 +1,54 @@
+{
+  "name": "zerocheck",
+  "version": "0.2.0",
+  "description": "Turn release checklists into repeatable browser tests. Run with the Zerocheck CLI, CI or web app and inspect the evidence.",
+  "keywords": [
+    "qa-agent",
+    "ai-testing",
+    "agentic-testing",
+    "zerocheck",
+    "testing",
+    "qa",
+    "e2e",
+    "end-to-end",
+    "browser-testing",
+    "test-automation",
+    "release-checklist",
+    "plain-english",
+    "playwright",
+    "cli",
+    "ci"
+  ],
+  "homepage": "https://tryzerocheck.com/",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arnimittal/zerocheck-cli.git",
+    "directory": "packages/thin-cli"
+  },
+  "type": "module",
+  "bin": {
+    "zerocheck": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "prepublishOnly": "node ../../scripts/check-public-build.mjs"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "playwright": "1.59.0",
+    "sharp": "0.35.4",
+    "yaml": "^2.9.0"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

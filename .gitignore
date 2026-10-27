@@ -1,0 +1,3 @@
+node_modules/
+packages/thin-cli/dist/
+*.tgz

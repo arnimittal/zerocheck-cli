@@ -1,0 +1,95 @@
+name: Publish zerocheck to npm
+
+# Publishes a verified version with npm provenance. Run it with the bundle and contents SHA-256 recorded when Zerocheck
+# verified that version (its release candidate summary); a build that differs is not published. npm trusted publishing
+# must be configured for this repository, this workflow file and the `npm` environment, which only main may use.
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_sha256:
+        description: Bundle SHA-256 recorded by the release verification of this version
+        required: true
+      contents_sha256:
+        description: Contents SHA-256 recorded by the release verification of this version
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  # Builds and checks without the right to publish; nothing it installs runs scripts.
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # npm attaches provenance only when the package names the repository that publishes it.
+      - name: Check the package names this repository
+        run: |
+          node -e "
+            const repository = require('./packages/thin-cli/package.json').repository;
+            const named = String(repository?.url ?? repository ?? '').replace(/^git\+/, '').replace(/\.git$/, '').replace(/\/$/, '');
+            const here = process.env.GITHUB_SERVER_URL + '/' + process.env.GITHUB_REPOSITORY;
+            if (named !== here) { console.error('packages/thin-cli/package.json repository is ' + (named || 'missing') + ', not ' + here + '. Set it where Zerocheck develops the CLI, verify that version again, then export.'); process.exit(1); }
+          "
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm run build
+
+      - name: Check the bundle is the verified one
+        env:
+          BUNDLE_SHA256: ${{ inputs.bundle_sha256 }}
+        run: node scripts/check-public-build.mjs --bundle-sha256 "$BUNDLE_SHA256"
+
+      - name: Pack and check the package is the verified one
+        env:
+          CONTENTS_SHA256: ${{ inputs.contents_sha256 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/package"
+          (cd packages/thin-cli && npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/package")
+          node scripts/check-public-build.mjs --tarball "$RUNNER_TEMP"/package/zerocheck-*.tgz --contents-sha256 "$CONTENTS_SHA256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: ${{ runner.temp }}/package/zerocheck-*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+  # Publishes the checked package, and nothing else, with provenance. npm accepts this job only in the `npm`
+  # environment, whose deployment branches are limited to main, so a run from another branch cannot publish.
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: package
+          path: ${{ runner.temp }}/package
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      # npm 11 publishes through GitHub OIDC and attaches provenance.
+      - run: npm install --global npm@11.15.0
+
+      - run: npm publish "$RUNNER_TEMP"/package/zerocheck-*.tgz --access public --provenance
