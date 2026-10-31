@@ -30,7 +30,7 @@ Have these ready:
 Run from the app repository containing the project files above. Replace the instance URL with the one you received during onboarding.
 
 ```bash
-npm install --save-dev --save-exact zerocheck@0.2.0
+npm install --save-dev --save-exact zerocheck@0.2.1
 npx playwright install chromium
 export ZEROCHECK_API="https://your-instance.example.com"
 npx zerocheck login

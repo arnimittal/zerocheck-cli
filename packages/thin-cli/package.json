@@ -1,6 +1,6 @@
 {
   "name": "zerocheck",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Turn release checklists into repeatable browser tests. Run with the Zerocheck CLI, CI or web app and inspect the evidence.",
   "keywords": [
     "qa-agent",
