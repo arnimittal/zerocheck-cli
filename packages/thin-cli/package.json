@@ -1,7 +1,7 @@
 {
   "name": "zerocheck",
   "version": "0.2.1",
-  "description": "Turn release checklists into repeatable browser tests. Run with the Zerocheck CLI, CI or web app and inspect the evidence.",
+  "description": "Zerocheck is an AI QA engineer that tests your app end to end. Run saved YAML tests with the CLI, on your machine or in CI.",
   "keywords": [
     "qa-agent",
     "ai-testing",
