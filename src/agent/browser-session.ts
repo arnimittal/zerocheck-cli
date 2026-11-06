@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { Browser, BrowserContext, Page } from 'playwright';
+import type { Browser, BrowserContext, CDPSession, Page } from 'playwright';
 import type { TargetPolicy } from '../policy/target-policy.js';
 import type { CredentialSession } from './credential-session.js';
 import { ConsoleRecorder } from './console-recorder.js';
@@ -24,6 +24,38 @@ export interface SessionEnvironment {
  * every guard is in place. A failed step leaves the session unusable: only cleanup runs. */
 type Stage = 'new' | 'opening' | 'context' | 'preparing' | 'prepared' | 'paging' | 'page' | 'guarding' | 'guarded' | 'ready' | 'failed' | 'closed';
 
+export const RECORDING_FRAME_INTERVAL_MS = 1_000;
+/**
+ * Chromium sends the recorder a frame only when the screen changes, and Playwright fills each gap with copies of the
+ * last frame when the next frame arrives, or when the recording stops inside context close. A step watching an
+ * unchanged screen (a failing Verify waits its whole window) would leave that whole gap to be encoded within the
+ * context-cleanup bound, which a 30-second gap on a busy page exceeds, and the recording would be lost. A screen
+ * capture makes Chromium send a frame, so gaps are encoded while the test runs (a clipped capture does not). It is
+ * taken at the lowest quality through DevTools, reads no DOM, changes nothing on the page, and its image is discarded;
+ * while one is pending (a busy or stuck renderer) the next is skipped. Never add `captureBeyondViewport`: it resizes
+ * the page for the capture, firing resize events that can change layout and a step's verdict.
+ */
+export function keepRecordingCurrent(page: Page, intervalMs = RECORDING_FRAME_INTERVAL_MS): () => void {
+  let client: CDPSession | undefined, pending = false, stopped = false;
+  const capture = async () => {
+    if (!client) {
+      const created = await page.context().newCDPSession(page);
+      if (stopped) { await created.detach().catch(() => {}); return; }
+      client = created;
+    }
+    await client.send('Page.captureScreenshot', { format: 'jpeg', quality: 1 });
+  };
+  const timer = setInterval(() => {
+    if (pending || stopped) return;
+    pending = true;
+    void capture().catch(() => {}).finally(() => { pending = false; });
+  }, intervalMs);
+  timer.unref?.();
+  const stop = () => { if (stopped) return; stopped = true; clearInterval(timer); page.off('close', stop); void client?.detach().catch(() => {}); };
+  page.once('close', stop);
+  return stop;
+}
+
 /**
  * The browser side of a check's session: the context, the hosted request guard, the page, the navigation guard,
  * popup blocking, console capture and video. The runner drives each step of setup and cleanup as one operation, with
@@ -35,6 +67,8 @@ export class BrowserSession {
   private releaseGuard?: () => Promise<void>;
   private readonly console = new ConsoleRecorder();
   private stage: Stage = 'new';
+  private recording = false;
+  private stopRecordingFrames?: () => void;
   /** The latest refusal and guard failure, kept so a lost message cannot hide them. */
   denied?: string; failure?: string;
   private readonly env: SessionEnvironment;
@@ -67,6 +101,7 @@ export class BrowserSession {
     const video = options.recordVideo && !env.secrets.length;
     await this.setup('new', 'opening', 'context', async () => {
       this.context = await env.browser.newContext({ viewport, ...(video ? { recordVideo: { dir: env.videoDir, size: viewport } } : {}), ...(env.allowRequest ? { serviceWorkers: 'block' as const } : {}) });
+      this.recording = video;
     });
   }
 
@@ -124,11 +159,12 @@ export class BrowserSession {
       void popup.close().catch(() => {});
     });
     this.console.attach(page);
+    if (this.recording) this.stopRecordingFrames = keepRecordingCurrent(page);
   }
 
   drainConsole(): ReturnType<ConsoleRecorder['drain']> { return redactConsoleLogs(this.console.drain(), this.env.secrets); }
 
-  async closeContext(): Promise<void> { this.stage = 'closed'; this.console.dispose(); await this.context?.close(); }
+  async closeContext(): Promise<void> { this.stage = 'closed'; this.stopRecordingFrames?.(); this.console.dispose(); await this.context?.close(); }
 
   /** Finalizes the recording after the context closed; the path is on this machine. */
   async saveVideo(): Promise<string | undefined> {

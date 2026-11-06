@@ -33,7 +33,7 @@ npx zerocheck login
 npx zerocheck run
 ```
 
-`login` prints a URL and a code for you to approve in your browser. `run` executes the tests in your configured test directory and prints each result with a link to the run. Open it to see the steps, screenshots and any recording. To run one test, use its path: `npx zerocheck run zerocheck/tests/discount-code.yaml`.
+`login` prints a URL and a code for you to approve in your browser. `run` executes the tests in your configured test directory and prints each result with a link to the run. Open it to see the steps and screenshots, and the recording of each test that uses no configured secrets. To run one test, use its path: `npx zerocheck run zerocheck/tests/discount-code.yaml`.
 
 In CI, set `ZEROCHECK_API` and a project token from Settings as `ZEROCHECK_TOKEN` instead of signing in.
 
@@ -68,7 +68,7 @@ Your instance receives each secret's name, never its value. It does receive the 
 
 ## Web app or CLI
 
-Tests you create in the web app run there in a hosted browser, with nothing to install. To bring one into your repository, use **Download YAML** and put the file in your test directory. That creates an independent copy, and edits don't sync.
+Tests you create in the web app run there in a hosted browser, with nothing to install. To bring one into your repository, use **Download YAML** and put the file in your test directory. That is an independent copy: editing, renaming or deleting the file, or running it with the CLI, never changes the test in the web app. To update the web copy from a file, use **Upload YAML** in the web app; a file downloaded from there replaces its test only after you confirm.
 
 ## Documentation
 
