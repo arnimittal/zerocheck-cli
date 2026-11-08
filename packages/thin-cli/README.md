@@ -8,7 +8,7 @@ This is the Zerocheck CLI.
 # zerocheck/tests/discount-code.yaml
 version: zerocheck/v1
 name: Discount code reaches confirmation
-blocks_merge: true
+blocking: true
 steps:
   - Navigate to /cart
   - Enter "SPRING20" into "Discount code"

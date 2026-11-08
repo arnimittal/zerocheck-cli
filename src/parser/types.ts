@@ -3,7 +3,7 @@ export interface Step { keyword: Keyword; argument: string; lineNumber: number; 
 export interface TestBlock {
   name: string;
   description?: string;
-  blocksMerge?: boolean;
+  blocking?: boolean;
   steps: Step[];
 }
 export const KEYWORD_MAP: [string, Keyword][] = [
